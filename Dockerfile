@@ -1,15 +1,7 @@
+
 FROM php:8.2-apache
 
-# System packages + PHP extensions this app/CI4 needs.
-# - pkg-config: the intl/zip extensions' ./configure steps use it to
-#   locate libicu/libzip — without it, configure fails pointing at "the
-#   pkg-config man page".
-# - libonig-dev: oniguruma, the regex engine mbstring compiles against.
-# - libpng-dev/libjpeg62-turbo-dev/libfreetype6-dev/libwebp-dev: gd's
-#   own image format support — phpoffice/phpspreadsheet hard-requires
-#   ext-gd (even though this app never touches images through it
-#   directly), so composer install fails without it, same as it would
-#   for zip.
+# Install system packages and PHP extensions required by CodeIgniter 4.
 RUN apt-get update && apt-get install -y \
         pkg-config \
         libicu-dev \
@@ -23,57 +15,56 @@ RUN apt-get update && apt-get install -y \
         git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install intl mbstring mysqli pdo_mysql zip gd \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# CI4's entry point is public/index.php — Apache must serve from there,
-# not the project root.
+# Serve CodeIgniter from the public directory.
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+
 RUN sed -ri -e "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf \
     && sed -ri -e "s!/var/www/!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
 RUN a2enmod rewrite headers
 
-# mod_php only works under the prefork MPM (it isn't thread-safe), which
-# is what this base image ships enabled by default — but installing more
-# packages above can trigger Debian's apache2 postinst to re-enable its
-# own default (mpm_event) alongside it, and Apache refuses to start with
-# two MPMs loaded at once ("More than one MPM loaded"). a2enmod/a2dismod
-# proved unreliable here, so this goes straight at what they themselves
-# edit — the mods-enabled symlinks — removing any other MPM's and
-# pointing prefork's at mods-available directly.
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
-           /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
+# Ensure Apache uses the prefork MPM required by mod_php.
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
+          /etc/apache2/mods-enabled/mpm_event.conf \
+          /etc/apache2/mods-enabled/mpm_worker.load \
+          /etc/apache2/mods-enabled/mpm_worker.conf \
     && ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load \
     && ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
 
-# Debian's default Apache config sets AllowOverride None on /var/www/ —
-# without this, the app's public/.htaccess (which routes every request
-# through index.php) is silently ignored and everything 404s except the
-# homepage.
+# Allow CodeIgniter's .htaccess rules.
 RUN printf '<Directory "%s">\n    AllowOverride All\n</Directory>\n' "$APACHE_DOCUMENT_ROOT" \
     > /etc/apache2/conf-available/z-allow-override.conf \
     && a2enconf z-allow-override
 
+# Install Composer.
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Install dependencies first (layer caching — this only re-runs when
-# composer.json/lock actually change, not on every code edit)
+# Install PHP dependencies.
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-interaction --optimize-autoloader
 
+# Copy application source.
 COPY . .
 
-# writable/ needs to be writable by Apache (logs, cache, sessions) — and
-# public/uploads/ too, for the local-disk fallback path when Cloudinary
-# isn't configured. Note that fallback storage still won't survive a
-# redeploy here; it's a safety net, not primary storage on Railway.
-RUN chown -R www-data:www-data writable public/uploads \
+# Set writable directory permissions.
+RUN mkdir -p writable public/uploads \
+    && chown -R www-data:www-data writable public/uploads \
     && chmod -R 775 writable public/uploads
 
+# Copy the startup script and normalize Windows line endings.
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && chmod 755 /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 80
-ENTRYPOINT ["docker-entrypoint.sh"]
+
+# Explicitly run the script with /bin/sh to avoid Exec format errors.
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/docker-entrypoint.sh"]
+
 CMD ["apache2-foreground"]
