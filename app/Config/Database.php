@@ -5,32 +5,18 @@ namespace Config;
 
 use CodeIgniter\Database\Config;
 
-/**
- * Database Configuration
- */
 class Database extends Config
 {
-    /**
-     * The directory that holds the Migrations and Seeds directories.
-     */
     public string $filesPath = APPPATH . 'Database' . DIRECTORY_SEPARATOR;
 
-    /**
-     * Default connection group.
-     */
     public string $defaultGroup = 'default';
 
-    /**
-     * Default database connection.
-     *
-     * @var array<string, mixed>
-     */
     public array $default = [
         'DSN'          => '',
         'hostname'     => '127.0.0.1',
         'username'     => 'root',
         'password'     => '',
-        'database'     => 'grahamgo_db',
+        'database'     => 'railway',
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
         'pConnect'     => false,
@@ -52,11 +38,6 @@ class Database extends Config
         ],
     ];
 
-    /**
-     * Database connection for automated tests.
-     *
-     * @var array<string, mixed>
-     */
     public array $tests = [
         'DSN'         => '',
         'hostname'    => '127.0.0.1',
@@ -89,33 +70,32 @@ class Database extends Config
     {
         parent::__construct();
 
-        // Load database settings from environment variables.
+        // Railway MySQL connection settings.
         $this->default['hostname'] = env(
-            'database.default.hostname',
-            env('MYSQLHOST', '127.0.0.1')
+            'MYSQLHOST',
+            env('database.default.hostname', '127.0.0.1')
         );
 
         $this->default['username'] = env(
-            'database.default.username',
-            env('MYSQLUSER', 'root')
+            'MYSQLUSER',
+            env('database.default.username', 'root')
         );
 
         $this->default['password'] = env(
-            'database.default.password',
-            env('MYSQLPASSWORD', '')
+            'MYSQLPASSWORD',
+            env('database.default.password', '')
         );
 
         $this->default['database'] = env(
-            'database.default.database',
-            env('MYSQLDATABASE', 'grahamgo_db')
+            'MYSQLDATABASE',
+            env('database.default.database', 'railway')
         );
 
         $this->default['port'] = (int) env(
-            'database.default.port',
-            env('MYSQLPORT', 3306)
+            'MYSQLPORT',
+            env('database.default.port', 3306)
         );
 
-        // Use the tests database when running automated tests.
         if (ENVIRONMENT === 'testing') {
             $this->defaultGroup = 'tests';
         }
