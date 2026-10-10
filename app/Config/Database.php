@@ -26,15 +26,17 @@ class Database extends Config
      */
    
 public array $default = [
+
+public array $default = [
     'DSN'          => '',
-    'hostname'     => env('database.default.hostname', '127.0.0.1'),
-    'username'     => env('database.default.username', 'root'),
-    'password'     => env('database.default.password', ''),
-    'database'     => env('database.default.database', 'grahamgo'),
+    'hostname'     => '127.0.0.1',
+    'username'     => 'root',
+    'password'     => '',
+    'database'     => 'grahamgo',
     'DBDriver'     => 'MySQLi',
     'DBPrefix'     => '',
     'pConnect'     => false,
-    'DBDebug'      => (ENVIRONMENT !== 'production'),
+    'DBDebug'      => false,
     'charset'      => 'utf8mb4',
     'DBCollat'     => 'utf8mb4_general_ci',
     'swapPre'      => '',
@@ -42,7 +44,7 @@ public array $default = [
     'compress'     => false,
     'strictOn'     => false,
     'failover'     => [],
-    'port'         => (int) env('database.default.port', 3306),
+    'port'         => 3306,
     'numberNative' => false,
     'foundRows'    => false,
     'dateFormat'   => [
@@ -51,6 +53,7 @@ public array $default = [
         'time'     => 'H:i:s',
     ],
 ];
+
 
 
     //    /**
