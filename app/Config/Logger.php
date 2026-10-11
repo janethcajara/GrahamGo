@@ -1,5 +1,6 @@
-﻿
+
 <?php
+
 namespace Config;
 
 use CodeIgniter\Config\BaseConfig;
@@ -8,10 +9,19 @@ use CodeIgniter\Log\Handlers\ErrorlogHandler;
 
 class Logger extends BaseConfig
 {
-    public $threshold = 4;
+    /**
+     * Log critical errors and runtime errors in production.
+     */
+    public $threshold = (ENVIRONMENT === 'production') ? 4 : 9;
 
+    /**
+     * Date format for log entries.
+     */
     public string $dateFormat = 'Y-m-d H:i:s';
 
+    /**
+     * Log handlers.
+     */
     public array $handlers = [
         FileHandler::class => [
             'handles' => [
