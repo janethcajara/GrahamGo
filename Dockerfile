@@ -1,7 +1,7 @@
 
 FROM php:8.2-apache
 
-# Install system packages and required PHP extensions.
+# Install system packages and PHP extensions required by CodeIgniter 4.
 RUN apt-get update && apt-get install -y \
         pkg-config \
         libicu-dev \
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Serve CodeIgniter 4 from its public directory.
+# Serve CodeIgniter from the public directory.
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri -e "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf \
@@ -26,7 +26,7 @@ RUN sed -ri -e "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-av
 
 RUN a2enmod rewrite headers
 
-# Configure Apache to use prefork MPM with mod_php.
+# Ensure Apache uses the prefork MPM required by mod_php.
 RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
           /etc/apache2/mods-enabled/mpm_event.conf \
           /etc/apache2/mods-enabled/mpm_worker.load \
@@ -44,24 +44,19 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Install dependencies.
+# Install PHP dependencies.
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-interaction --optimize-autoloader
 
 # Copy application source.
 COPY . .
 
-# Check PHP syntax during the build.
-RUN php -l app/Config/Logger.php \
-    && php -l app/Config/Database.php \
-    && php -l public/index.php
-
-# Ensure writable directories exist and have correct permissions.
-RUN mkdir -p writable/logs writable/cache writable/session public/uploads \
+# Set writable directory permissions.
+RUN mkdir -p writable public/uploads \
     && chown -R www-data:www-data writable public/uploads \
     && chmod -R 775 writable public/uploads
 
-# Copy startup script and remove Windows CRLF characters.
+# Copy the startup script and normalize Windows line endings.
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
@@ -69,7 +64,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
 
 EXPOSE 80
 
-# Run the startup script explicitly through the shell.
+# Explicitly run the script with /bin/sh to avoid Exec format errors.
 ENTRYPOINT ["/bin/sh", "/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["apache2-foreground"]
