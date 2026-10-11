@@ -1,13 +1,16 @@
+
 #!/bin/sh
+
 echo "=================================================="
 echo "GRAHAMGO ENTRYPOINT DIAGNOSTICS"
 echo "=================================================="
 
-# Ensure Apache uses the prefork MPM required by mod_php.
-grep -rl "LoadModule mpm_event_module\|LoadModule mpm_worker_module" /etc/apache2/ 2>/dev/null |
-while IFS= read -r f; do
-    sed -i '/LoadModule mpm_event_module/d; /LoadModule mpm_worker_module/d' "$f"
-    echo "Removed conflicting MPM LoadModule lines from: $f"
+# Use Apache prefork MPM with mod_php.
+grep -rl "LoadModule mpm_event_module\|LoadModule mpm_worker_module" \
+    /etc/apache2/ 2>/dev/null |
+while IFS= read -r file; do
+    sed -i '/LoadModule mpm_event_module/d; /LoadModule mpm_worker_module/d' "$file"
+    echo "Removed conflicting MPM lines from: $file"
 done
 
 rm -f /etc/apache2/mods-enabled/mpm_event.load \
@@ -17,7 +20,6 @@ rm -f /etc/apache2/mods-enabled/mpm_event.load \
 
 ln -sf /etc/apache2/mods-available/mpm_prefork.load \
        /etc/apache2/mods-enabled/mpm_prefork.load
-
 ln -sf /etc/apache2/mods-available/mpm_prefork.conf \
        /etc/apache2/mods-enabled/mpm_prefork.conf
 
@@ -27,7 +29,7 @@ if [ -n "$PORT" ]; then
     sed -i "s/:80>/:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 fi
 
-echo "--- Database environment variable status (values hidden) ---"
+echo "--- Database environment variable status ---"
 
 for name in MYSQLHOST MYSQLDATABASE MYSQLUSER MYSQLPASSWORD MYSQLPORT; do
     if [ -n "$(printenv "$name")" ]; then
@@ -40,16 +42,20 @@ done
 echo "--- PHP VERSION ---"
 php -v
 
-echo "--- CODEIGNITER MIGRATION ERROR DETAILS ---"
+echo "--- CHECKING LOGGER PHP SYNTAX ---"
+php -l app/Config/Logger.php
 
+echo "--- CHECKING DATABASE CONFIG PHP SYNTAX ---"
+php -l app/Config/Database.php
+
+echo "--- CODEIGNITER MIGRATION ---"
 php -d display_errors=1 -d log_errors=1 spark migrate --all 2>&1
 MIGRATION_STATUS=$?
 
 echo "--- MIGRATION EXIT CODE: $MIGRATION_STATUS ---"
 
 if [ "$MIGRATION_STATUS" -ne 0 ]; then
-    echo "ERROR: Migration failed."
-    echo "Review the PHP or CodeIgniter error messages above."
+    echo "ERROR: Migration failed. See the PHP error above."
 else
     echo "Migration completed successfully."
 fi
