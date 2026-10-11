@@ -100,4 +100,3 @@ class Database extends Config
         }
     }
 }
-```
