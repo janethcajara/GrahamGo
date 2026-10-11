@@ -1,4 +1,4 @@
-
+```php
 <?php
 
 namespace Config;
@@ -10,7 +10,9 @@ use CodeIgniter\Log\Handlers\ErrorlogHandler;
 class Logger extends BaseConfig
 {
     /**
-     * Log critical errors and runtime errors in production.
+     * Log threshold.
+     * Production: log errors and more severe messages.
+     * Development: log all message levels.
      */
     public $threshold = (ENVIRONMENT === 'production') ? 4 : 9;
 
@@ -23,6 +25,20 @@ class Logger extends BaseConfig
      * Log handlers.
      */
     public array $handlers = [
+        ErrorlogHandler::class => [
+            'handles' => [
+                'critical',
+                'alert',
+                'emergency',
+                'debug',
+                'error',
+                'info',
+                'notice',
+                'warning',
+            ],
+            'messageType' => 0,
+        ],
+
         FileHandler::class => [
             'handles' => [
                 'critical',
@@ -38,19 +54,6 @@ class Logger extends BaseConfig
             'filePermissions' => 0644,
             'path' => '',
         ],
-
-        ErrorlogHandler::class => [
-            'handles' => [
-                'critical',
-                'alert',
-                'emergency',
-                'debug',
-                'error',
-                'info',
-                'notice',
-                'warning',
-            ],
-            'messageType' => 0,
-        ],
     ];
 }
+```
